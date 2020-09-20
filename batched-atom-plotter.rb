@@ -31,6 +31,17 @@ def get_offset_from_line_start(file_descriptor)
   end
   offset
 end
+
+def get_co_ordinate(file_descriptor, offset, steps)
+  co_ords = []
+  steps.times {
+    file_descriptor.seek(offset, IO::SEEK_CUR)
+    co_ordinate = file_descriptor.read(@x.to_s.length)
+    co_ords.append(co_ordinate)
+    file_descriptor.gets
+  }
+  co_ords
+end
 # open the dump files and read the x,y and z positions for those 
 # many steps
 def open_file_and_locate_co_ordinates(file_name, steps)
@@ -40,9 +51,11 @@ def open_file_and_locate_co_ordinates(file_name, steps)
   p found_locations
   
   fd.seek(found_locations.first - 1)
-  left_offset = get_offset_from_line_start(fd)
-  p left_offset
+  offset = get_offset_from_line_start(fd)
+  p offset
   
+  @x_s = get_co_ordinate(fd, offset, steps)
+  p @x_s
   
 end
 
