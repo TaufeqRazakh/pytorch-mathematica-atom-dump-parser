@@ -20,6 +20,7 @@ require 'humanize'
 def locate_co_ordinates(file_name)
   file_contents = IO.read(file_name)
   found_locations = file_contents.to_enum(:scan, /#{@x.to_s}/).map {Regexp.last_match.begin(0)}
+  # I found_locations is not of size 2 re do search in remaining segment with +/–0.0001 tolerance
   found_locations
 end
 
@@ -36,6 +37,7 @@ def get_co_ordinate(file_descriptor, offset, steps)
   co_ords = []
   steps.times {
     file_descriptor.seek(offset, IO::SEEK_CUR)
+    # probably read until you get a space
     co_ordinate = file_descriptor.read(@x.to_s.length)
     co_ords.append(co_ordinate)
     file_descriptor.gets
