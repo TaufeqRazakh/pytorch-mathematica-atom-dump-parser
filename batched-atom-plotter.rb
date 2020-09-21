@@ -14,6 +14,8 @@ using Rainbow
 
 @sorted_files_and_steps = @sorted_files.zip(@steps_per_batch)
 
+@output_file_name = ""
+
 @x = 0
 @y = 1.5290
 @z = 3.6253
@@ -65,7 +67,7 @@ def open_dump_and_locate_co_ordinate(file_name, steps)
   co_ordinates_in_dump = get_traj_co_ordinates_in_dump(fd, offset, steps)
   @x_s = @x_s.union(co_ordinates_in_dump)
   @x = @x_s.last
-  puts "co-ordinates obtained for atom in this dimension so far are \u{1F373} :\n#{@x_s}"
+  puts "co-ordinates \u{1F373} for atom in this dimension so far are :\n#{@x_s}"
   
 end
 
