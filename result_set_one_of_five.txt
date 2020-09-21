@@ -1,4 +1,4 @@
-Atom positions and velocities over time grids from Ground truth
+Atom positions and velocities over time grids from ground truth
  3.7731  0.6748  1.5251  1.4653  3.8809  4.2302  4.6916  3.0292  4.8368  5.2308
  3.7616  0.6840  1.5287  1.4695  3.8918  4.2324  4.6957  3.0228  4.8243  5.2313
  3.7503  0.6919  1.5325  1.4749  3.9036  4.2348  4.7001  3.0164  4.8116  5.2318
