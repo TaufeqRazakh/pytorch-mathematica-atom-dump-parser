@@ -1,6 +1,6 @@
 # Use the Gemfile for dependencies
 
-# Pass the regex of files in quotes as argument 
+# Pass the regex of files in quotes as argument
 # ruby batched-atom-plotter.rb "result_set_*_of_five.txt"
 
 require 'humanize'
@@ -24,8 +24,8 @@ def locate_co_ordinates(file_name)
   found_locations
 end
 
-def get_offset_from_line_start(file_descriptor)
-  offset = 0 
+def get_offset_from_new_line(file_descriptor)
+  offset = 0
   while file_descriptor.getc != "\n" do
     file_descriptor.seek(-2, IO::SEEK_CUR)
     offset = offset + 1
@@ -45,18 +45,16 @@ def get_traj_co_ordinates_in_dump(file_descriptor, offset, steps)
   co_ords
 end
 
-# open the dump files and read the x,y and z positions for those 
-# many steps
 def open_dump_and_locate_co_ordinate(file_name, steps)
   fd = File.new(file_name)
 
   found_locations = locate_co_ordinates(file_name)
   puts "found locations for "+@initial_co_ordinate.inspect.green+" in "+file_name.blue+" to be #{found_locations}"
-  
+
   fd.seek(found_locations.first - 1)
-  offset = get_offset_from_line_start(fd)
+  offset = get_offset_from_new_line(fd)
   puts "offset distance from line start to arrive at co-ordinate is #{offset}"
-  
+
   co_ordinates_in_dump = get_traj_co_ordinates_in_dump(fd, offset, steps)
   @initial_co_ordinate = co_ordinates_in_dump.last
   co_ordinates_in_dump
@@ -75,50 +73,47 @@ end
 
 def write_co_ords_to_file(file_name, co_ordinates)
   fd = File.open(file_name, "w+")
-  
+
   dimensions = {}
   co_ordinates.each_index { |i| dimensions[:"#{i+1}"] = co_ordinates[i] }
-  
-  spatial_location = []
-  step = 0 
-  dimensions.keys.each { |key| spatial_location << dimensions[key][step] }
-  mathematica_list = "{%{entry}}" % {:entry => spatial_location.join(',')}
-  fd.puts(mathematica_list)
+
+  co_ordinates.first.each_index do |step|
+    spatial_location = []
+    dimensions.keys.each { |key| spatial_location << dimensions[key][step] }
+    mathematica_list = "{%{entry}}" % {:entry => spatial_location.join(', ')}
+    fd.puts(mathematica_list)
+  end
   fd.flush
 end
 
 def read_start_points_from_xyz(file_name)
   fd = File.new(file_name)
-  
+
   # .xyz file has first line with number of atoms
   number_of_atoms = fd.readline.to_i
-  
+
   # .xyz has second line empty
   fd.readline
-  
-  # .read starting co-ordinated from lines
-  line = fd.readline
-  
-  # divide line into data
-  line_data = line.split
-  output_file_name = "atom_traj_" + line_data.shift + ".txt"
-  
-  co_ordinates_along_dimensions = []
-  # read the starting co-ordinate for each dimension
-  while (starting_co_ordinate = line_data.shift) do 
-    @initial_co_ordinate = starting_co_ordinate.to_f.round(4)
-    
-    co_ordinates_along_dimensions << locate_co_ordinate_along_dimension
+
+  # read co-ordinates in file in each lines
+  fd.each do |line|
+    # divide line into data
+    line_data = line.split
+    output_file_name = "atom_traj_" + line_data.shift + ".txt"
+
+    co_ordinates_along_dimensions = []
+    # read the starting co-ordinate for each dimension
+    while (starting_co_ordinate = line_data.shift) do
+      @initial_co_ordinate = starting_co_ordinate.to_f.round(4)
+
+      co_ordinates_along_dimensions << locate_co_ordinate_along_dimension
+    end
+    write_co_ords_to_file(output_file_name, co_ordinates_along_dimensions)
+    # co_ordinates_along_dimensions
   end
-  write_co_ords_to_file(output_file_name, co_ordinates_along_dimensions)
-  co_ordinates_along_dimensions
 end
 
-# Print the tracked atom positions into an output file for wolfram
-
-# Perform open_file_and_populate for eatch batch
-
-# Start 
+# Start
 # open_dump_and_locate_co_ordinates(@sorted_files.first, @steps_per_batch.first)
-co_ords = read_start_points_from_xyz('frame130.xyz')
-puts "The co-ordinates of the atom along all dimensions are: \n#{co_ords}"
+read_start_points_from_xyz('frame130.xyz')
+puts "check output file"
