@@ -19,12 +19,26 @@ using Rainbow
 
 def locate_co_ordinates(file_name)
   file_contents = IO.read(file_name)
-  found_locations = file_contents.to_enum(:scan, /#{@initial_co_ordinate.to_s}/).map {Regexp.last_match.begin(0)}
+  
+  # handle the case of no coherent numbers in trailing  files with user input
+  begin
+    found_location = file_contents =~ /#{@initial_co_ordinate}/
+    raise if found_location == nil 
+  rescue 
+    puts "Could not find #{@initial_co_ordinate} in #{file_name}"
+    puts "Type in your input for best possbible atom trajectory begin point: "
+    @initial_co_ordinate = gets
+    retry
+  end
+  
+  if @initial_co_ordinate.to_s[0] != '-' 
+    found_location = found_location - 1
+  end
   # I found_locations is not of size 2 re do search in remaining segment with +/–0.0001 tolerance
-  found_locations
+  [found_location]
 end
 
-def get_offset_from_new_line(file_descriptor)
+def get_offset_from_line_begin(file_descriptor)
   offset = 0
   while file_descriptor.getc != "\n" do
     file_descriptor.seek(-2, IO::SEEK_CUR)
@@ -38,7 +52,7 @@ def get_traj_co_ordinates_in_dump(file_descriptor, offset, steps)
   steps.times {
     file_descriptor.seek(offset, IO::SEEK_CUR)
     # probably read until you get a space
-    co_ordinate = file_descriptor.read(@initial_co_ordinate.to_s.length)
+    co_ordinate = file_descriptor.read(6)
     co_ords.append(co_ordinate)
     file_descriptor.gets
   }
@@ -49,14 +63,14 @@ def open_dump_and_locate_co_ordinate(file_name, steps)
   fd = File.new(file_name)
 
   found_locations = locate_co_ordinates(file_name)
-  puts "found locations for "+@initial_co_ordinate.inspect.green+" in "+file_name.blue+" to be #{found_locations}"
-
-  fd.seek(found_locations.first - 1)
-  offset = get_offset_from_new_line(fd)
+  puts "found locations for signed "+@initial_co_ordinate.inspect.green+" in "+file_name.blue+" to be #{found_locations}"
+  
+  fd.seek(found_locations.first)
+  offset = get_offset_from_line_begin(fd)
   puts "offset distance from line start to arrive at co-ordinate is #{offset}"
 
   co_ordinates_in_dump = get_traj_co_ordinates_in_dump(fd, offset, steps)
-  @initial_co_ordinate = co_ordinates_in_dump.last
+  @initial_co_ordinate = co_ordinates_in_dump.last.strip
   co_ordinates_in_dump
 end
 
@@ -115,5 +129,6 @@ end
 
 # Start
 # open_dump_and_locate_co_ordinates(@sorted_files.first, @steps_per_batch.first)
+
 read_start_points_from_xyz('frame130.xyz')
 puts "check output file"
