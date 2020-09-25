@@ -2,6 +2,8 @@
 
 # Pass the regex of files in quotes as argument
 # ruby batched-atom-plotter.rb "result_set_*_of_five.txt"
+# Finally generate plots with this script
+# (1..32).each {|i| puts "Graphics3D[{Blue, Thick, Line[mdtraj#{i}]}],"}
 
 require 'humanize'
 require 'rainbow/refinement'
@@ -25,9 +27,10 @@ def locate_co_ordinates(file_name)
     found_location = file_contents =~ /#{@initial_co_ordinate}/
     raise if found_location == nil 
   rescue 
-    puts "Could not find #{@initial_co_ordinate} in #{file_name}"
-    puts "Type in your input for best possbible atom trajectory begin point: "
-    @initial_co_ordinate = gets
+    puts "Could not find " + @initial_co_ordinate.green + " in " + file_name.blue
+    print "Type in your input for best possbible atom trajectory begin point: "
+    STDOUT.flush
+    @initial_co_ordinate = gets.chomp
     retry
   end
   
@@ -94,12 +97,35 @@ def write_co_ords_to_file(file_name, co_ordinates)
   co_ordinates.first.each_index do |step|
     spatial_location = []
     dimensions.keys.each { |key| spatial_location << dimensions[key][step] }
-    mathematica_list = "{%{entry}}" % {:entry => spatial_location.join(', ')}
+    mathematica_list = "{%{entry}}," % {:entry => spatial_location.join(', ')}
     fd.puts(mathematica_list)
   end
   fd.flush
 end
 
+def write_co_ords_as_wolfram_lists_to_file(atom_number, co_ordinates)
+  fd = File.open("mathematica_dump.txt", "a+")
+  
+  dimensions = {}
+  co_ordinates.each_index { |i| dimensions[:"#{i+1}"] = co_ordinates[i] }
+  
+  list_statement = "mdtraj"+atom_number+"=List["
+  fd.puts(list_statement)
+  
+  trajectory = []
+  
+  co_ordinates.first.each_index do |step|
+    spatial_location = []
+    dimensions.keys.each { |key| spatial_location << dimensions[key][step] }
+    mathematica_list = "{%{entry}}" % {:entry => spatial_location.join(', ')}
+    trajectory << mathematica_list
+  end
+  fd.puts(trajectory.join(', '))
+  fd.puts("]")
+  
+  fd.flush
+end
+  
 def read_start_points_from_xyz(file_name)
   fd = File.new(file_name)
 
@@ -108,13 +134,16 @@ def read_start_points_from_xyz(file_name)
 
   # .xyz has second line empty
   fd.readline
-
+  
+  File.open("mathematica_dump.txt", "w")
+  
   # read co-ordinates in file in each lines
   fd.each do |line|
     # divide line into data
     line_data = line.split
-    output_file_name = "atom_traj_" + line_data.shift + ".txt"
-
+    atom_number = line_data.shift
+    output_file_name = "atom_traj_" + atom_number + ".txt"
+    
     co_ordinates_along_dimensions = []
     # read the starting co-ordinate for each dimension
     while (starting_co_ordinate = line_data.shift) do
@@ -122,7 +151,9 @@ def read_start_points_from_xyz(file_name)
 
       co_ordinates_along_dimensions << locate_co_ordinate_along_dimension
     end
-    write_co_ords_to_file(output_file_name, co_ordinates_along_dimensions)
+    # write co-ordinates to mathematica 
+    write_co_ords_as_wolfram_lists_to_file(atom_number, co_ordinates_along_dimensions)
+    # write_co_ords_to_file(output_file_name, co_ordinates_along_dimensions)
     # co_ordinates_along_dimensions
   end
 end
@@ -131,4 +162,4 @@ end
 # open_dump_and_locate_co_ordinates(@sorted_files.first, @steps_per_batch.first)
 
 read_start_points_from_xyz('frame130.xyz')
-puts "check output file"
+puts "check output files"
