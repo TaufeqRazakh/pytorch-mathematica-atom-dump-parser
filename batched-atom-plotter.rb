@@ -40,6 +40,12 @@ class FileSegmentOfInterest
   end
   
 end
+
+class NoMatchesFound < StandardError
+end
+
+class MultipleMatchesFound < StandardError
+end
  
 def locate_co_ordinates(file_name, length = nil, offset = nil)
   full_file_search   = false
@@ -52,20 +58,22 @@ def locate_co_ordinates(file_name, length = nil, offset = nil)
   # or search in file again with added tolerance
   begin
     found_location = file_contents =~ /#{search_co_ordinates}/
-    raise if found_location == nil 
-  rescue 
+    raise NoMatchesFound if found_location == nil 
+  rescue NoMatchesFound
     unless lower_bound_search
+      puts "NoMatchesFound: attempting lower bound search".magenta
       search_co_ordinates = (@initial_co_ordinate.to_f - 0.0001).to_s
       lower_bound_search = true
       retry
     end
     unless upper_bound_search
+      puts "NoMatchesFound: attempting upper bound search".magenta
       search_co_ordinates = (@initial_co_ordinate.to_f + 0.0001).to_s
       upper_bound_search = true
       retry
     end
     unless full_file_search
-      puts "attempting full file search"
+      puts "NoMatchesFound: attempting full file search".magenta
       file_contents = IO.read(file_name)
       search_co_ordinates = @initial_co_ordinate
       full_file_search = true
@@ -74,7 +82,7 @@ def locate_co_ordinates(file_name, length = nil, offset = nil)
       retry
     end
     puts "Could not find " + @initial_co_ordinate.inspect.green + " in " + file_name.blue
-    print "Type in your input for best possbible atom trajectory begin point: "
+    print "NoMatchesFound: Type in your input for best possbible atom trajectory begin point: ".magenta
     STDOUT.flush
     search_co_ordinates = gets.chomp
     @initial_co_ordinate = search_co_ordinates
