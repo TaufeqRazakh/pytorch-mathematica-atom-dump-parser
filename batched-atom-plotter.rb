@@ -51,7 +51,9 @@ def locate_co_ordinates(file_name, length = nil, offset = nil)
   # handle the case of no coherent numbers in trailing files with user input 
   # or search in file again with added tolerance
   begin
-    found_location = file_contents =~ /#{search_co_ordinates}/
+    found_locations = line.enum_for(:scan, /#{search[0, search.length - 1]}\d/).map 
+     Regexp.last_match(0) }
+    # found_location = file_contents =~ /#{search_co_ordinates}/
     raise if found_location == nil 
   rescue 
     unless lower_bound_search
