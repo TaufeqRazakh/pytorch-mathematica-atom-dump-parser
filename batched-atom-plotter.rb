@@ -42,13 +42,14 @@ class FileSegmentOfInterest
 end
  
 def locate_co_ordinates(file_name, length = nil, offset = nil)
-  full_file_search = false
+  full_file_search   = false
   lower_bound_search = false 
   upper_bound_search = false 
   
   file_contents = IO.read(file_name, length, offset)
   search_co_ordinates = @initial_co_ordinate
-  # handle the case of no coherent numbers in trailing  files with user input
+  # handle the case of no coherent numbers in trailing files with user input 
+  # or search in file again with added tolerance
   begin
     found_location = file_contents =~ /#{search_co_ordinates}/
     raise if found_location == nil 
@@ -214,8 +215,7 @@ end
 # open_dump_and_locate_co_ordinates(@sorted_files.first, @steps_per_batch.first)
 unless (ARGV.empty?)
   project = ARGV.shift
-  project = Dir.glob(project).take_while {|p| Dir.exist?(p)}
-  Dir.chdir(project.first)
+  Dir.chdir(Dir[project].to_enum.filter { |i| Dir.exists?(i) }.first)
 end
 
 read_start_points_from_xyz('frame130.xyz')
