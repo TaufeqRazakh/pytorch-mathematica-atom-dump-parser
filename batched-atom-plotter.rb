@@ -19,25 +19,73 @@ using Rainbow
 
 @initial_co_ordinate = 0
 
-def locate_co_ordinates(file_name)
-  file_contents = IO.read(file_name)
+class FileSegmentOfInterest
+  attr_accessor :length, :offset, :integer_offset
   
-  # handle the case of no coherent numbers in trailing  files with user input
-  begin
-    found_location = file_contents =~ /#{@initial_co_ordinate}/
-    raise if found_location == nil 
-  rescue 
-    puts "Could not find " + @initial_co_ordinate.green + " in " + file_name.blue
-    print "Type in your input for best possbible atom trajectory begin point: "
-    STDOUT.flush
-    @initial_co_ordinate = gets.chomp
-    retry
+  # line_offset, file_offset
+  def initialize
+    @length = nil
+    @offset = nil
+    @integer_offset = 0
   end
   
+  def set_offset(offset)
+    @offset = offset
+    @integer_offset = offset
+    @length = 70
+  end
+  
+  def set_read_lenght_until(mark)
+    @length = mark - @offset
+  end
+  
+end
+ 
+def locate_co_ordinates(file_name, length = nil, offset = nil)
+  full_file_search = false
+  lower_bound_search = false 
+  upper_bound_search = false 
+  
+  file_contents = IO.read(file_name, length, offset)
+  search_co_ordinates = @initial_co_ordinate
+  # handle the case of no coherent numbers in trailing  files with user input
+  begin
+    found_location = file_contents =~ /#{search_co_ordinates}/
+    raise if found_location == nil 
+  rescue 
+    unless lower_bound_search
+      search_co_ordinates = (@initial_co_ordinate.to_f - 0.0001).to_s
+      lower_bound_search = true
+      retry
+    end
+    unless upper_bound_search
+      search_co_ordinates = (@initial_co_ordinate.to_f + 0.0001).to_s
+      upper_bound_search = true
+      retry
+    end
+    unless full_file_search
+      puts "attempting full file search"
+      file_contents = IO.read(file_name)
+      search_co_ordinates = @initial_co_ordinate
+      full_file_search = true
+      lower_bound_search = upper_bound_search = false
+      length = offset = nil
+      retry
+    end
+    puts "Could not find " + @initial_co_ordinate.inspect.green + " in " + file_name.blue
+    print "Type in your input for best possbible atom trajectory begin point: "
+    STDOUT.flush
+    search_co_ordinates = gets.chomp
+    @initial_co_ordinate = search_co_ordinates
+    retry
+  end
   if @initial_co_ordinate.to_s[0] != '-' 
     found_location = found_location - 1
   end
   # I found_locations is not of size 2 re do search in remaining segment with +/–0.0001 tolerance
+  unless offset.nil? 
+    found_location += offset
+  end
   [found_location]
 end
 
@@ -62,10 +110,10 @@ def get_traj_co_ordinates_in_dump(file_descriptor, offset, steps)
   co_ords
 end
 
-def open_dump_and_locate_co_ordinate(file_name, steps)
+def open_dump_and_locate_co_ordinate(file_name, steps, fileSegmentOfInterest)
   fd = File.new(file_name)
-
-  found_locations = locate_co_ordinates(file_name)
+  
+  found_locations = locate_co_ordinates(file_name, fileSegmentOfInterest.length, fileSegmentOfInterest.offset)
   puts "found locations for signed "+@initial_co_ordinate.inspect.green+" in "+file_name.blue+" to be #{found_locations}"
   
   fd.seek(found_locations.first)
@@ -73,15 +121,19 @@ def open_dump_and_locate_co_ordinate(file_name, steps)
   puts "offset distance from line start to arrive at co-ordinate is #{offset}"
 
   co_ordinates_in_dump = get_traj_co_ordinates_in_dump(fd, offset, steps)
+  # after reading n steps the file descripto position marks the end of te interest region 
+  fileSegmentOfInterest.set_offset(found_locations.first)
+  fileSegmentOfInterest.set_read_lenght_until(fd.pos)
   @initial_co_ordinate = co_ordinates_in_dump.last.strip
   co_ordinates_in_dump
 end
 
 def locate_co_ordinate_along_dimension
   co_ordinates_along_dimension = []
+  fileSegmentOfInterest = FileSegmentOfInterest.new()
   puts "\u{1F600} initiaing trajectory grab starting from #{@initial_co_ordinate}"
   @sorted_files_and_steps.each do |file_name, steps|
-    co_ordinates_from_dump = open_dump_and_locate_co_ordinate(file_name, steps)
+    co_ordinates_from_dump = open_dump_and_locate_co_ordinate(file_name, steps, fileSegmentOfInterest)
     co_ordinates_from_dump.each { |v| co_ordinates_along_dimension.append(v) }
     puts "co-ordinates \u{1F373} for atom in this dimension so far are :\n#{co_ordinates_along_dimension}"
   end
@@ -147,7 +199,7 @@ def read_start_points_from_xyz(file_name)
     co_ordinates_along_dimensions = []
     # read the starting co-ordinate for each dimension
     while (starting_co_ordinate = line_data.shift) do
-      @initial_co_ordinate = starting_co_ordinate.to_f.round(4)
+      @initial_co_ordinate = starting_co_ordinate[0,7].to_f.round(4).to_s
 
       co_ordinates_along_dimensions << locate_co_ordinate_along_dimension
     end
@@ -160,6 +212,11 @@ end
 
 # Start
 # open_dump_and_locate_co_ordinates(@sorted_files.first, @steps_per_batch.first)
+unless (ARGV.empty?)
+  project = ARGV.shift
+  project = Dir.glob(project).take_while {|p| Dir.exist?(p)}
+  Dir.chdir(project.first)
+end
 
 read_start_points_from_xyz('frame130.xyz')
 puts "check output files"
