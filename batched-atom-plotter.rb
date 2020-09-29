@@ -57,24 +57,26 @@ def locate_co_ordinates(file_name, length = nil, offset = nil)
   # handle the case of no coherent numbers in trailing files with user input 
   # or search in file again with added tolerance
   begin
-    found_location = line.enum_for(:scan, /#{search[0, search.length - 1]}\d/).map 
-     Regexp.last_match(0) }.last
-    # found_location = file_contents =~ /#{search_co_ordinates}/
-    raise NoMatchesFound if found_location == nil 
+    puts "looking for #{search_co_ordinates} in #{file_name}"
+    found_locations = file_contents.enum_for(:scan, /#{search_co_ordinates}/).map { Regexp.last_match.begin(0) }
+    found_location = found_locations.last
+    # An alternative to saech is found_location = (file_contents =~ /#{search_co_ordinates}/)
+    # The enum solution is inspired from https://stackoverflow.com/questions/5241653/ruby-regex-match-and-get-positions-of
+    
+    raise NoMatchesFound if found_locations.empty?
+    raise MultipleMatchesFound if found_locations.length > 1 
   rescue NoMatchesFound
-    unless lower_bound_search
+    if !lower_bound_search
       puts "NoMatchesFound: attempting lower bound search".magenta
-      search_co_ordinates = (@initial_co_ordinate.to_f - 0.0001).to_s
+      search_co_ordinates = (@initial_co_ordinate.to_f - 0.0001).round(4).to_s
       lower_bound_search = true
       retry
-    end
-    unless upper_bound_search
+    elsif !upper_bound_search
       puts "NoMatchesFound: attempting upper bound search".magenta
-      search_co_ordinates = (@initial_co_ordinate.to_f + 0.0001).to_s
+      search_co_ordinates = (@initial_co_ordinate.to_f + 0.0001).round(4).to_s
       upper_bound_search = true
       retry
-    end
-    unless full_file_search
+    elsif !full_file_search
       puts "NoMatchesFound: attempting full file search".magenta
       file_contents = IO.read(file_name)
       search_co_ordinates = @initial_co_ordinate
@@ -82,18 +84,26 @@ def locate_co_ordinates(file_name, length = nil, offset = nil)
       lower_bound_search = upper_bound_search = false
       length = offset = nil
       retry
+    else
+      puts "Could not find " + @initial_co_ordinate.inspect.green + " in " + file_name.blue
+      print "NoMatchesFound: Type in your input for best possbible atom trajectory begin point: ".magenta
+      STDOUT.flush
+      search_co_ordinates = gets.chomp
+      @initial_co_ordinate = search_co_ordinates
+      retry  
     end
-    puts "Could not find " + @initial_co_ordinate.inspect.green + " in " + file_name.blue
-    print "NoMatchesFound: Type in your input for best possbible atom trajectory begin point: ".magenta
-    STDOUT.flush
-    search_co_ordinates = gets.chomp
-    @initial_co_ordinate = search_co_ordinates
-    retry
+  rescue MultipleMatchesFound
+    puts "MultipleMatchesFound: make choice of found results to use.".magenta
+    some_val = gets.chomp
   end
+  
+  # Add space to the left if the number has no minus sign.
+  # This is done to ensure reading of minus sign in the column if any
   if @initial_co_ordinate.to_s[0] != '-' 
     found_location = found_location - 1
   end
-  # I found_locations is not of size 2 re do search in remaining segment with +/–0.0001 tolerance
+  
+  # Correct the found_location if search was done with in file section
   unless offset.nil? 
     found_location += offset
   end
