@@ -161,7 +161,8 @@ def locate_co_ordinate_along_dimension
   co_ordinates_along_dimension
 end
 
-def write_co_ords_to_file(file_name, co_ordinates)
+def write_co_ords_to_xyz(atom_number, co_ordinates)
+  output_file_name = "atom_traj_" + atom_number + ".xyz"
   fd = File.open(file_name, "w+")
 
   dimensions = {}
@@ -215,18 +216,17 @@ def read_start_points_from_xyz(file_name)
     # divide line into data
     line_data = line.split
     atom_number = line_data.shift
-    output_file_name = "atom_traj_" + atom_number + ".txt"
     
     co_ordinates_along_dimensions = []
     # read the starting co-ordinate for each dimension
     while (starting_co_ordinate = line_data.shift) do
-      @initial_co_ordinate = starting_co_ordinate[0,7].to_f.round(4).to_s
+      @initial_co_ordinate = starting_co_ordinate[0,7].to_s
 
       co_ordinates_along_dimensions << locate_co_ordinate_along_dimension
     end
     # write co-ordinates to mathematica 
     write_co_ords_as_wolfram_lists_to_file(atom_number, co_ordinates_along_dimensions)
-    # write_co_ords_to_file(output_file_name, co_ordinates_along_dimensions)
+    # write_co_ords_to_xyz(atom_number, co_ordinates_along_dimensions)
     # co_ordinates_along_dimensions
   end
 end
