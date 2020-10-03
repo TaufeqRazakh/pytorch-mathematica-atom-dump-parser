@@ -19,6 +19,37 @@ using Rainbow
 
 @initial_co_ordinate = 0
 
+
+class String 
+  val = ""
+  def take_or_pad(length, padstr='')
+    # "3488888".take_or_pad(4,'0')
+      #=> "3488"
+    # "3488888".take_or_pad(0,'0')
+      # => "3488888"
+    # "3488888".take_or_pad(1,'0')
+      #=> "3"      
+    if(self.length >= length)
+      val = self[0..length-1]
+    else
+      val = self.ljust(length, padstr)
+    end
+    val
+  end
+end
+
+def read_4_decimal_places(input_string)
+  val = ""
+  split_string = input_string.split('.')
+  if (split_string.length > 1)
+    val = split_string[0] + "." + split_string[1].take_or_pad(4,'0')
+    p val
+  else
+    val = split_string
+  end
+  val
+end
+
 class FileSegmentOfInterest
   attr_accessor :length, :offset, :integer_offset
   
@@ -47,7 +78,7 @@ end
 class MultipleMatchesFound < StandardError
 end
  
-def locate_co_ordinates(file_name, length = nil, offset = nil)
+def locate_co_ordinate(file_name, length = nil, offset = nil)
   full_file_search   = false
   lower_bound_search = false 
   upper_bound_search = false 
@@ -68,12 +99,12 @@ def locate_co_ordinates(file_name, length = nil, offset = nil)
   rescue NoMatchesFound
     if !lower_bound_search
       puts "NoMatchesFound: attempting lower bound search".magenta
-      search_co_ordinates = (@initial_co_ordinate.to_f - 0.0001).round(4).to_s
+      search_co_ordinates = read_4_decimal_places((@initial_co_ordinate.to_f - 0.0001).to_s)
       lower_bound_search = true
       retry
     elsif !upper_bound_search
       puts "NoMatchesFound: attempting upper bound search".magenta
-      search_co_ordinates = (@initial_co_ordinate.to_f + 0.0001).round(4).to_s
+      search_co_ordinates = read_4_decimal_places((@initial_co_ordinate.to_f + 0.0001).round(4).to_s)
       upper_bound_search = true
       retry
     elsif !full_file_search
@@ -107,7 +138,7 @@ def locate_co_ordinates(file_name, length = nil, offset = nil)
   unless offset.nil? 
     found_location += offset
   end
-  [found_location]
+  found_location
 end
 
 def get_offset_from_line_begin(file_descriptor)
@@ -134,16 +165,16 @@ end
 def open_dump_and_locate_co_ordinate(file_name, steps, fileSegmentOfInterest)
   fd = File.new(file_name)
   
-  found_locations = locate_co_ordinates(file_name, fileSegmentOfInterest.length, fileSegmentOfInterest.offset)
-  puts "found locations for signed "+@initial_co_ordinate.inspect.green+" in "+file_name.blue+" to be #{found_locations}"
+  found_location = locate_co_ordinate(file_name, fileSegmentOfInterest.length, fileSegmentOfInterest.offset)
+  puts "found locations for signed "+@initial_co_ordinate.inspect.green+" in "+file_name.blue+" to be #{found_location}"
   
-  fd.seek(found_locations.first)
+  fd.seek(found_location)
   offset = get_offset_from_line_begin(fd)
   puts "offset distance from line start to arrive at co-ordinate is #{offset}"
 
   co_ordinates_in_dump = get_traj_co_ordinates_in_dump(fd, offset, steps)
   # after reading n steps the file descripto position marks the end of te interest region 
-  fileSegmentOfInterest.set_offset(found_locations.first)
+  fileSegmentOfInterest.set_offset(found_location)
   fileSegmentOfInterest.set_read_lenght_until(fd.pos)
   @initial_co_ordinate = co_ordinates_in_dump.last.strip
   co_ordinates_in_dump
@@ -220,7 +251,7 @@ def read_start_points_from_xyz(file_name)
     co_ordinates_along_dimensions = []
     # read the starting co-ordinate for each dimension
     while (starting_co_ordinate = line_data.shift) do
-      @initial_co_ordinate = starting_co_ordinate[0,7].to_s
+      @initial_co_ordinate = read_4_decimal_places(starting_co_ordinate)
 
       co_ordinates_along_dimensions << locate_co_ordinate_along_dimension
     end
